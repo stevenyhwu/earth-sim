@@ -256,12 +256,35 @@ class View {
     this.controls.update();
     this.dirty = true;
   }
+  // 從鏡頭看過去，點 p 是否被某顆球（地球）擋住
+  isOccluded(p) {
+    const c = this.camera.position;
+    const d = p.clone().sub(c); const L = d.length(); d.divideScalar(L);
+    for (const o of this.occluders || []) {
+      const oc = o.center.clone().sub(c);
+      const tca = oc.dot(d);
+      if (tca < 0) continue;
+      const d2 = oc.lengthSq() - tca * tca;
+      if (d2 > o.r * o.r) continue;
+      if (tca - Math.sqrt(o.r * o.r - d2) < L - 1e-3) return true;
+    }
+    return false;
+  }
   render() {
     if (!this.wrap.clientWidth) return;
     const moved = this.controls.update();
     if (this.dirty || moved) {
+      this.beforeRender?.();
       this.renderer.render(this.scene, this.camera);
       this.labels.render(this.scene, this.camera);
+      // 被地球擋住的文字標籤要藏起來，否則會「穿透」地球浮在前面
+      if (this.occluders) {
+        const tmp = new THREE.Vector3();
+        this.scene.traverse((o) => {
+          if (o.isCSS2DObject && o.userData.occlude && o.element.style.display !== 'none'
+              && this.isOccluded(o.getWorldPosition(tmp))) o.element.style.display = 'none';
+        });
+      }
       this.dirty = false;
     }
   }
@@ -310,13 +333,14 @@ const sp = {};
   S.add(sp.earth.group);
   sp.axis = new THREE.Group();
   sp.axis.add(line([V(0, -1.9, 0), V(0, 1.9, 0)], 0xffffff));
-  const nl = label('北極', 'dim'); nl.position.set(0, 2.15, 0); sp.axis.add(nl);
+  const nl = label('北極', 'dim'); nl.position.set(0, 2.15, 0); nl.userData.occlude = true; sp.axis.add(nl);
   sp.earth.group.add(sp.axis);
   sp.perp = dashed([V(0, -1.9, 0), V(0, 1.9, 0)], 0xaaaaaa, 0.8, 0.15);
   S.add(sp.perp);
   sp.rays = makeRays(7); S.add(sp.rays); setVis(sp.rays, false);
   sp.meLbl = label('', 'dim'); S.add(sp.meLbl);
 }
+space.occluders = [{ center: sp.earth.group.position, r: 1 }, { center: V(0, 0, 0), r: 1.6 }];
 let spaceYear = null, spaceFollow = false, lastEarthPos = null;
 function buildOrbit(year) {
   clearGroup(sp.orbit); clearGroup(sp.months);
@@ -370,14 +394,30 @@ const gl = {};
   gl.light = new THREE.DirectionalLight(0xffffff, 2.8); S.add(gl.light);
   S.add(new THREE.AmbientLight(0xffffff, 0.16));
   const ax = line([V(0, -GR * 1.35, 0), V(0, GR * 1.35, 0)], 0xffffff, 0.7); S.add(ax);
-  const n = label('北極', 'dim'); n.position.set(0, GR * 1.45, 0); S.add(n);
+  const n = label('北極', 'dim'); n.position.set(0, GR * 1.45, 0); n.userData.occlude = true; S.add(n);
   const c = []; for (let i = 0; i < 128; i++) { const a = i / 128 * Math.PI * 2; c.push(V(Math.cos(a) * GR * 1.008, Math.sin(a) * GR * 1.008, 0)); }
   gl.term = line(c, 0xffffff, 0.95, true); S.add(gl.term);
   gl.rays = makeRays(9); S.add(gl.rays); setVis(gl.rays, false);
   gl.sunLbl = label('☀ 陽光\n從這邊來', 'sun two'); S.add(gl.sunLbl);
-  gl.meLbl = label('', ''); gl.earth.group.add(gl.meLbl);
+  gl.meLbl = label('', ''); gl.meLbl.userData.occlude = true; gl.earth.group.add(gl.meLbl);
+  gl.sunDir = V(1, 0, 0);
 }
-let globeSpin = false, lastG = null;
+globe.occluders = [{ center: V(0, 0, 0), r: GR * 1.0 }];
+// 太陽在地球正後方時，把「陽光」標籤移到地球邊緣，並改成「從背後照過來」
+globe.beforeRender = () => {
+  const cam = globe.camera.position.clone().normalize();
+  const k = gl.sunDir.dot(cam);
+  if (k < -0.35) {
+    const perp = gl.sunDir.clone().addScaledVector(cam, -k);
+    if (perp.lengthSq() < 1e-4) perp.set(0, 1, 0);
+    gl.sunLbl.position.copy(perp.normalize().multiplyScalar(GR * 1.3));
+    gl.sunLbl.element.textContent = '☀ 陽光從\n地球背後照過來';
+  } else {
+    gl.sunLbl.position.copy(gl.sunDir.clone().multiplyScalar(GR * 1.45));
+    gl.sunLbl.element.textContent = '☀ 陽光\n從這邊來';
+  }
+};
+let globeSpin = true, lastG = null;
 function updateGlobe(s) {
   const sd = s.decl * D2R, sr = s.ra * D2R;
   const sunDir = eqToGlobe(Math.cos(sd) * Math.cos(sr), Math.cos(sd) * Math.sin(sr), Math.sin(sd));
@@ -387,8 +427,7 @@ function updateGlobe(s) {
   gl.meLbl.position.copy(geoLocal(state.place.lat, state.place.lon, GR * 1.12));
   gl.meLbl.element.textContent = state.place.name;
   gl.term.quaternion.setFromUnitVectors(V(0, 0, 1), sunDir);
-  // 「陽光 →」標籤放在地球的向陽側、略偏畫面上方
-  gl.sunLbl.position.copy(sunDir.clone().multiplyScalar(GR * 1.45));
+  gl.sunDir.copy(sunDir);
   if (gl.rays.visible) updateRays(gl.rays, V(0, 0, 0), sunDir.clone().negate(), GR, 6);
   if (globeSpin && lastG != null) {
     let d = s.gmst - lastG; if (d > 180) d -= 360; if (d < -180) d += 360;
