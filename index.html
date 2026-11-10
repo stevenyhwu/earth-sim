@@ -1,0 +1,234 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>地球與太陽模擬器</title>
+<meta name="description" content="三個視角連動的地球自轉、公轉與太陽視運動模擬器">
+<meta name="theme-color" content="#0b1020">
+<style>
+  :root {
+    --bg: #070a14; --panel: #111829; --panel2: #18213a; --line: #26324f;
+    --text: #e6ebf5; --dim: #93a0bd; --accent: #ffcf4a; --red: #ff5a5a; --blue: #5fb2ff; --green: #6ad48a;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text);
+    font-family: system-ui, -apple-system, "Segoe UI", "Noto Sans TC", "Microsoft JhengHei", sans-serif; }
+  body { display: grid; grid-template-rows: auto auto 1fr auto; height: 100dvh; overflow: hidden; }
+  button, select, input { font: inherit; color: inherit; }
+  header { display: flex; align-items: center; gap: 10px; padding: 8px 14px; background: var(--panel); border-bottom: 1px solid var(--line); }
+  header h1 { font-size: 16px; margin: 0; font-weight: 600; letter-spacing: .5px; }
+  header .sub { color: var(--dim); font-size: 12px; }
+  .tabs { display: none; }
+
+  .views { display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; gap: 6px; padding: 6px; min-height: 0; }
+  .view { position: relative; display: flex; flex-direction: column; min-height: 0; min-width: 0; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; background: #05070d; }
+  .vhead { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; padding: 5px 8px; background: var(--panel); border-bottom: 1px solid var(--line); }
+  .vhead b { font-size: 13px; font-weight: 600; margin-right: auto; }
+  .chips { display: flex; flex-wrap: wrap; gap: 4px; }
+  .chip { border: 1px solid var(--line); background: transparent; color: var(--dim); border-radius: 999px; padding: 2px 9px; font-size: 12px; cursor: pointer; }
+  .chip.on { background: #24345c; color: var(--text); border-color: #3d5590; }
+  .chip.act { background: var(--accent); color: #222; border-color: var(--accent); }
+  .canvas { position: relative; flex: 1; min-height: 0; }
+  .canvas canvas { touch-action: none; }
+  .canvas canvas { display: block; }
+  .labels { position: absolute; inset: 0; pointer-events: none; }
+  .hud { position: absolute; left: 8px; top: 6px; font-size: 12px; color: #fff; background: rgba(0,0,0,.45); padding: 3px 7px; border-radius: 6px; pointer-events: none; line-height: 1.5; }
+  .howto { position: absolute; left: 8px; bottom: 8px; right: 8px; max-width: 460px; font-size: 13px; line-height: 1.6; }
+  .howto summary { display: inline-block; cursor: pointer; background: rgba(17,24,41,.85); border: 1px solid var(--line); border-radius: 999px; padding: 2px 10px; color: var(--accent); list-style: none; }
+  .howto summary::-webkit-details-marker { display: none; }
+  .howto div { margin-top: 6px; background: rgba(17,24,41,.94); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; max-height: 40vh; overflow: auto; }
+  .howto p { margin: 0 0 6px; }
+  .note { position: absolute; right: 8px; bottom: 8px; font-size: 11px; color: var(--dim); pointer-events: none; }
+
+  .lbl { font-size: 12px; color: #fff; text-shadow: 0 0 3px #000, 0 0 3px #000; white-space: nowrap; }
+  .lbl.two { white-space: pre-line; text-align: center; line-height: 1.25; }
+  .lbl.big { font-size: 16px; font-weight: 700; }
+  .lbl.dim { color: #b8c2da; font-size: 11px; }
+  .lbl.sun { color: var(--accent); font-weight: 600; }
+  .lbl.hr { font-size: 10px; color: #ffe9a6; transform: translate(0, -12px); }
+  .lbl.sum { color: #ff8a7a; } .lbl.win { color: #7ec3ff; } .lbl.eq { color: #8fe6a6; }
+
+  #v-info { overflow: auto; }
+  .info { padding: 10px 14px; font-size: 14px; line-height: 1.7; overflow: auto; }
+  .info h3 { font-size: 13px; color: var(--accent); margin: 10px 0 2px; font-weight: 600; }
+  .info h3:first-child { margin-top: 0; }
+  .info table { border-collapse: collapse; width: 100%; }
+  .info td { padding: 1px 0; vertical-align: top; }
+  .info td:first-child { color: var(--dim); width: 8.5em; }
+  .info .big { font-size: 20px; font-weight: 700; }
+  .info .formula { background: var(--panel2); border-radius: 8px; padding: 6px 10px; margin-top: 4px; font-size: 13px; }
+
+  footer { background: var(--panel); border-top: 1px solid var(--line); padding: 8px 12px calc(8px + env(safe-area-inset-bottom)); display: grid; grid-template-columns: auto 1fr 1fr; gap: 6px 18px; align-items: center; }
+  .ctl { display: flex; align-items: center; gap: 6px; min-width: 0; }
+  .ctl > label { color: var(--dim); font-size: 13px; white-space: nowrap; }
+  .ctl input[type=range] { flex: 1; min-width: 60px; accent-color: var(--accent); height: 28px; }
+  .ctl output { min-width: 6.5em; font-variant-numeric: tabular-nums; font-size: 14px; }
+  .btn { background: var(--panel2); border: 1px solid var(--line); border-radius: 8px; padding: 4px 10px; cursor: pointer; min-height: 32px; }
+  .btn.round { width: 32px; padding: 0; }
+  #play { width: 44px; height: 40px; font-size: 18px; background: var(--accent); color: #222; border: 0; border-radius: 10px; }
+  select { background: var(--panel2); border: 1px solid var(--line); border-radius: 8px; padding: 4px 6px; min-height: 32px; }
+  .row3 { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center; }
+  .quick { display: flex; flex-wrap: wrap; gap: 4px; }
+  #more { display: none; }
+
+  @media (max-width: 860px) {
+    header { padding: 6px 12px; } header .sub { display: none; }
+    .tabs { display: flex; background: var(--panel); border-bottom: 1px solid var(--line); }
+    .tabs button { flex: 1; background: none; border: 0; padding: 9px 0; color: var(--dim); font-size: 14px; border-bottom: 2px solid transparent; }
+    .tabs button.on { color: var(--text); border-bottom-color: var(--accent); }
+    .views { grid-template-columns: 1fr; grid-template-rows: 1fr; padding: 0; gap: 0; }
+    .view { display: none; border: 0; border-radius: 0; }
+    .view.active { display: flex; }
+    .vhead b { display: none; }
+    .chip { padding: 4px 10px; font-size: 13px; }
+    footer { grid-template-columns: 1fr; padding: 6px 10px calc(6px + env(safe-area-inset-bottom)); gap: 4px; }
+    .ctl output { min-width: 5.6em; font-size: 13px; }
+    .btn.round { width: 38px; min-height: 38px; }
+    #more { display: inline-block; }
+    footer.collapsed .row3 { display: none; }
+    .playrow { justify-content: space-between; }
+  }
+</style>
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+} }
+</script>
+<script src="https://cdn.jsdelivr.net/npm/topojson-client@3.1.0/dist/topojson-client.min.js"></script>
+</head>
+<body>
+<header>
+  <h1>🌏 地球與太陽模擬器</h1>
+  <span class="sub">自轉・公轉・太陽視運動　三個視角同步連動</span>
+</header>
+
+<nav class="tabs" id="tabs">
+  <button data-view="v-space">太空</button>
+  <button data-view="v-globe">地球</button>
+  <button data-view="v-ground" class="on">地面</button>
+  <button data-view="v-info">數據</button>
+</nav>
+
+<main class="views">
+  <section class="view" id="v-space">
+    <div class="vhead"><b>① 太空視角：公轉</b>
+      <div class="chips">
+        <button class="chip on" data-layer="space.months">月份</button>
+        <button class="chip on" data-layer="space.axis">自轉軸</button>
+        <button class="chip on" data-layer="space.lines">回歸線</button>
+        <button class="chip" data-layer="space.rays">陽光</button>
+        <button class="chip" data-layer="space.plane">軌道面</button>
+        <button class="chip act" data-cam="space.all">全景</button>
+        <button class="chip" data-cam="space.follow">跟著地球</button>
+      </div>
+    </div>
+    <div class="canvas"><div class="hud"></div>
+      <details class="howto"><summary>怎麼看？</summary><div>
+        <p>從太空看<b>地球繞太陽公轉</b>，一圈是一年。拖曳可以旋轉畫面，滾輪或雙指可以縮放。</p>
+        <p>注意<b>白色自轉軸</b>：不管地球走到軌道哪裡，它都指向同一個方向（北極星），而且和「垂直軌道面的虛線」夾約 23.4°。</p>
+        <p>因此 6 月時北半球傾向太陽，<b>黃點（太陽直射點）</b>在北回歸線附近；12 月則換南半球傾向太陽，直射點跑到南回歸線。直射點在兩條回歸線之間來回移動，這就是<b>四季</b>的由來。</p>
+        <p>紅點是你選的地點。地球和太陽的大小都放大了很多倍，否則會小到看不見。</p>
+      </div></details>
+      <div class="note">地球、太陽大小已放大</div>
+    </div>
+  </section>
+
+  <section class="view" id="v-globe">
+    <div class="vhead"><b>② 地球視角：自轉、晝夜</b>
+      <div class="chips">
+        <button class="chip on" data-layer="globe.grid">經緯線</button>
+        <button class="chip on" data-layer="globe.lines">回歸線</button>
+        <button class="chip on" data-layer="globe.term">晨昏線</button>
+        <button class="chip on" data-layer="globe.horizon">地平面</button>
+        <button class="chip" data-layer="globe.rays">陽光</button>
+        <button class="chip" data-cam="globe.spin">鏡頭跟著轉</button>
+      </div>
+    </div>
+    <div class="canvas"><div class="hud"></div>
+      <details class="howto"><summary>怎麼看？</summary><div>
+        <p>地球每天由西向東<b>自轉</b>一圈。陽光從畫面上標示「陽光」的方向照過來，亮的一半是白天，暗的一半是黑夜。</p>
+        <p><b>白色圈＝晨昏線</b>：白天與黑夜的分界。黃點是<b>太陽直射點</b>，站在那裡的人正午時太陽就在頭頂正上方。</p>
+        <p><b>紅點</b>是你的位置，上面那片小圓盤是你的<b>地平面</b>，「地面視角」畫的就是站在這片圓盤上看到的天空。</p>
+        <p>點一下地球表面就能把地點換到那裡。打開「鏡頭跟著轉」，鏡頭會跟著地球一起轉，就能看到晨昏線掃過你的位置，也就是日出和日落。</p>
+        <p>橘線是南北回歸線，藍線是南北極圈，白線是赤道。</p>
+      </div></details>
+    </div>
+  </section>
+
+  <section class="view" id="v-ground">
+    <div class="vhead"><b>③ 地面視角：太陽視運動、竿影</b>
+      <div class="chips">
+        <button class="chip on" data-layer="ground.hours">時刻</button>
+        <button class="chip on" data-layer="ground.ray">陽光</button>
+        <button class="chip" data-layer="ground.seasons">四季軌跡</button>
+        <button class="chip" data-layer="ground.trail">影端軌跡</button>
+        <button class="chip" data-layer="ground.below">地平線下</button>
+        <button class="chip act" data-cam="ground.side">斜看</button>
+        <button class="chip" data-cam="ground.top">鳥瞰</button>
+        <button class="chip" data-cam="ground.south">從南看</button>
+        <button class="chip" data-cam="ground.east">從東看</button>
+      </div>
+    </div>
+    <div class="canvas"><div class="hud"></div>
+      <details class="howto"><summary>怎麼看？</summary><div>
+        <p>以你為中心，把天空想成一個<b>大碗倒扣</b>在地面上（天球）。<b>黃線</b>是今天太陽在天空走過的路徑，上面的小數字是幾點鐘的位置。</p>
+        <p>中間立著一根竿子，<b>影子永遠指向太陽的反方向</b>。打開「陽光」，可以看到光線經過竿頂，剛好落在影子尖端。太陽越高，影子越短。</p>
+        <p>打開「四季軌跡」比較：<span style="color:#ff8a7a">夏至</span>的路徑最高最長（白天長），<span style="color:#7ec3ff">冬至</span>最低最短（白天短），<span style="color:#8fe6a6">春分、秋分</span>從正東升起、正西落下。</p>
+        <p>「影端軌跡」是竿影尖端一整天畫出來的線，古人用它來判斷方位和季節。</p>
+      </div></details>
+    </div>
+  </section>
+
+  <section class="view" id="v-info">
+    <div class="vhead"><b>④ 數據</b></div>
+    <div class="info" id="info"></div>
+  </section>
+</main>
+
+<footer id="controls" class="collapsed">
+  <div class="ctl playrow">
+    <button id="play" title="播放／暫停">▶</button>
+    <select id="speed" title="播放速度">
+      <option value="600">每秒 10 分鐘</option>
+      <option value="3600" selected>每秒 1 小時</option>
+      <option value="10800">每秒 3 小時</option>
+      <option value="259200">每秒 3 天（時刻固定）</option>
+      <option value="1296000">每秒 15 天（時刻固定）</option>
+    </select>
+    <button class="btn" id="more">更多 ▾</button>
+  </div>
+  <div class="ctl">
+    <label for="date">日期</label>
+    <button class="btn round" data-step="-1440">‹</button>
+    <input type="range" id="date" min="0" max="364" step="1">
+    <button class="btn round" data-step="1440">›</button>
+    <output id="dateOut"></output>
+  </div>
+  <div class="ctl">
+    <label for="time">時間</label>
+    <button class="btn round" data-step="-10">‹</button>
+    <input type="range" id="time" min="0" max="1439" step="1">
+    <button class="btn round" data-step="10">›</button>
+    <output id="timeOut"></output>
+  </div>
+  <div class="row3">
+    <div class="ctl"><label>地點</label><select id="place"></select></div>
+    <div class="ctl" style="flex:1;min-width:220px"><label for="lat">緯度</label><input type="range" id="lat" min="-90" max="90" step="0.5"><output id="latOut"></output></div>
+    <div class="quick">
+      <button class="btn" data-season="0">春分</button>
+      <button class="btn" data-season="1">夏至</button>
+      <button class="btn" data-season="2">秋分</button>
+      <button class="btn" data-season="3">冬至</button>
+      <button class="btn" id="now">現在</button>
+      <button class="btn" data-jump="rise">日出</button>
+      <button class="btn" data-jump="noon">正午</button>
+      <button class="btn" data-jump="set">日落</button>
+    </div>
+  </div>
+</footer>
+
+<script type="module" src="app.js"></script>
+</body>
+</html>
