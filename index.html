@@ -20,6 +20,8 @@
   header h1 { font-size: 16px; margin: 0; font-weight: 600; letter-spacing: .5px; }
   header .sub { color: var(--dim); font-size: 12px; }
   .tabs { display: none; }
+  .guidelink { margin-left: auto; color: #222; background: var(--accent); text-decoration: none; font-size: 13px; font-weight: 600; padding: 5px 12px; border-radius: 999px; white-space: nowrap; }
+  .view.flash { outline: 3px solid var(--accent); outline-offset: -3px; transition: outline-color .4s; }
 
   .views { display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; gap: 6px; padding: 6px; min-height: 0; }
   .view { position: relative; display: flex; flex-direction: column; min-height: 0; min-width: 0; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; background: #05070d; }
@@ -102,6 +104,7 @@
 <header>
   <h1>🌏 地球與太陽模擬器</h1>
   <span class="sub">自轉・公轉・太陽視運動　三個視角同步連動</span>
+  <a class="guidelink" href="guide.html">📖 學習指引</a>
 </header>
 
 <nav class="tabs" id="tabs">

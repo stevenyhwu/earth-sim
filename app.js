@@ -796,8 +796,58 @@ function frame(now) {
   views.forEach((v) => v.render());
   requestAnimationFrame(frame);
 }
+// ───────────────────────── 網址參數（學習指引用來「帶到這個畫面」） ─────────────────────────
+// 例：?season=1&time=12:00&place=台北&view=ground&layers=ground.seasons,-ground.hours&cam=ground.top&speed=600&play=1
+function applyUrlParams() {
+  const q = new URLSearchParams(location.search);
+  if (![...q.keys()].length) return;
+  const name = q.get('place');
+  if (name) {
+    const i = PLACES.findIndex((p) => p.name.startsWith(name));
+    if (i >= 0) setPlace({ ...PLACES[i] });
+  }
+  if (q.has('lat')) setPlace({ ...state.place, name: '自選地點', lat: +q.get('lat'), custom: true });
+  const l = local();
+  let { year, doy, min } = l;
+  const toDoy = (y, m, d) => Math.round((Date.UTC(y, m - 1, d) - Date.UTC(y, 0, 1)) / DAY);
+  if (q.get('date')) {
+    const [y, m, d] = q.get('date').split('-').map(Number);
+    year = y; doy = toDoy(y, m, d);
+  }
+  if (q.get('season') != null) {
+    // 用「今年的春分/夏至/秋分/冬至」，連結就不會過期
+    const d = new Date(seasonMoments(year)[+q.get('season')] + state.place.tz * 3600000);
+    doy = toDoy(d.getUTCFullYear(), d.getUTCMonth() + 1, d.getUTCDate());
+  }
+  if (q.get('time')) {
+    const [h, m] = q.get('time').split(':').map(Number);
+    min = h * 60 + (m || 0);
+  }
+  if (q.has('date') || q.has('season') || q.has('time')) setLocal(year, doy, min);
+  if (q.get('jump')) document.querySelector(`[data-jump="${q.get('jump')}"]`)?.click();
+  // layers：寫名字＝打開，前面加 - ＝關掉
+  for (const k of (q.get('layers') || '').split(',').filter(Boolean)) {
+    const on = !k.startsWith('-'), key = k.replace(/^-/, '');
+    if (layerOn(key) !== on) document.querySelector(`[data-layer="${key}"]`)?.click();
+  }
+  for (const c of (q.get('cam') || '').split(',').filter(Boolean)) document.querySelector(`[data-cam="${c}"]`)?.click();
+  if (q.get('spin') === '0' && globeSpin) document.querySelector('[data-cam="globe.spin"]')?.click();
+  if (q.get('speed')) { $('speed').value = q.get('speed'); $('speed').dispatchEvent(new Event('change')); }
+  const view = q.get('view');
+  if (view) {
+    document.querySelector(`#tabs [data-view="v-${view}"]`)?.click();
+    // 電腦版四格都在，閃一下框線提示該看哪一格
+    const el = document.getElementById('v-' + view);
+    el?.classList.add('flash');
+    setTimeout(() => el?.classList.remove('flash'), 2600);
+  }
+  aimGlobe();
+  if (q.get('play') === '1') $('play').click();
+}
+
 applyLayers();
 update();
 aimGlobe();
+applyUrlParams();
 requestAnimationFrame(frame);
 loadLand();

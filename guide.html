@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>學習指引・地球與太陽</title>
+<meta name="description" content="從零開始、一步一步看懂地球自轉、公轉、四季、影子與太陽軌跡">
+<meta name="theme-color" content="#0b1020">
+<style>
+  :root {
+    --bg: #070a14; --panel: #111829; --panel2: #18213a; --line: #26324f;
+    --text: #e6ebf5; --dim: #93a0bd; --accent: #ffcf4a; --red: #ff5a5a; --blue: #5fb2ff; --green: #6ad48a;
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+    font-family: system-ui, -apple-system, "Segoe UI", "Noto Sans TC", "Microsoft JhengHei", sans-serif;
+    font-size: 17px; line-height: 1.75; }
+  a { color: var(--accent); }
+  button { font: inherit; color: inherit; }
+
+  header { position: sticky; top: 0; z-index: 20; display: flex; align-items: center; gap: 10px; padding: 8px 16px; background: var(--panel); border-bottom: 1px solid var(--line); }
+  header h1 { font-size: 16px; margin: 0; font-weight: 600; }
+  header h1 a { color: var(--text); text-decoration: none; }
+  #tocBtn { display: none; background: var(--panel2); border: 1px solid var(--line); border-radius: 8px; padding: 3px 10px; cursor: pointer; font-size: 14px; }
+  .simlink { margin-left: auto; color: #222; background: var(--accent); text-decoration: none; font-size: 13px; font-weight: 600; padding: 5px 12px; border-radius: 999px; white-space: nowrap; }
+  .progress { height: 3px; background: var(--line); }
+  .progress div { height: 100%; width: 0; background: var(--accent); transition: width .3s; }
+
+  .layout { display: grid; grid-template-columns: 270px minmax(0, 1fr); max-width: 1180px; margin: 0 auto; }
+  aside { position: sticky; top: 52px; align-self: start; max-height: calc(100vh - 52px); overflow: auto; padding: 16px 10px 40px 16px; border-right: 1px solid var(--line); font-size: 14px; line-height: 1.5; }
+  aside .ch { color: var(--dim); font-size: 12px; margin: 14px 0 4px 6px; letter-spacing: .5px; }
+  aside .ch:first-child { margin-top: 0; }
+  aside a { display: flex; gap: 8px; align-items: baseline; padding: 6px 8px; border-radius: 8px; color: var(--text); text-decoration: none; }
+  aside a:hover { background: var(--panel); }
+  aside a.on { background: var(--panel2); color: var(--accent); }
+  aside a .n { color: var(--dim); font-variant-numeric: tabular-nums; min-width: 1.6em; }
+  aside a.done .n::after { content: " ✓"; color: var(--green); }
+  aside .soon { padding: 6px 8px; color: #5d6886; }
+
+  main { padding: 20px 28px 60px; min-width: 0; }
+  article { max-width: 760px; margin: 0 auto; }
+  .kicker { color: var(--dim); font-size: 13px; letter-spacing: .5px; }
+  h2 { font-size: 26px; margin: 2px 0 14px; line-height: 1.35; }
+  .one { font-size: 19px; font-weight: 700; margin: 0 0 14px; }
+  .label { display: inline-block; font-size: 12px; color: var(--accent); border: 1px solid #5a4a1a; border-radius: 999px; padding: 0 9px; margin-bottom: 4px; letter-spacing: .5px; }
+  .analogy { background: var(--panel); border-left: 3px solid var(--accent); border-radius: 0 10px 10px 0; padding: 10px 14px; margin: 0 0 16px; }
+  .analogy p { margin: 0; }
+  ol.steps { padding-left: 1.4em; margin: 0 0 18px; }
+  ol.steps li { margin: 4px 0; }
+  .simwrap { margin: 18px 0; }
+  .sim { background: #05070d; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+  .sim canvas { display: block; }
+  .siminfo { padding: 6px 12px; font-size: 14px; color: var(--text); background: var(--panel); border-top: 1px solid var(--line); min-height: 34px; }
+  .simctl { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; padding: 8px 12px 10px; background: var(--panel); }
+  .simctl .rg { display: flex; align-items: center; gap: 8px; flex: 1 1 240px; min-width: 0; }
+  .simctl .rg span { font-size: 13px; color: var(--dim); white-space: nowrap; }
+  .simctl input[type=range] { flex: 1; min-width: 80px; accent-color: var(--accent); height: 30px; }
+  .simctl output { font-variant-numeric: tabular-nums; font-size: 14px; min-width: 4.2em; }
+  .simctl .play { width: 42px; height: 36px; border: 0; border-radius: 10px; background: var(--accent); color: #222; font-size: 16px; cursor: pointer; }
+  .simctl .seg { display: flex; gap: 4px; flex-wrap: wrap; }
+  .simctl .seg button { border: 1px solid var(--line); background: var(--panel2); border-radius: 999px; padding: 3px 12px; font-size: 14px; cursor: pointer; color: var(--dim); }
+  .simctl .seg button.on { background: var(--accent); color: #222; border-color: var(--accent); }
+  .try { font-size: 15px; color: #ffe6a0; margin: 8px 2px 0; }
+  .try b { color: var(--accent); }
+  .why { margin: 18px 0; }
+  details.adult { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; margin: 18px 0; }
+  details.adult summary { cursor: pointer; padding: 9px 14px; color: var(--blue); font-weight: 600; font-size: 15px; }
+  details.adult div { padding: 0 14px 10px; font-size: 15px; }
+  details.adult p { margin: 0 0 8px; }
+  .golink { display: flex; align-items: center; gap: 12px; text-decoration: none; background: linear-gradient(90deg, #1d2a4c, #18213a); border: 1px solid #3d5590; border-radius: 12px; padding: 12px 16px; color: var(--text); margin: 18px 0; }
+  .golink b { color: var(--accent); }
+  .golink span { color: var(--dim); font-size: 14px; display: block; }
+  .golink .arrow { margin-left: auto; font-size: 22px; color: var(--accent); }
+  nav.pager { display: flex; gap: 10px; margin-top: 26px; border-top: 1px solid var(--line); padding-top: 16px; }
+  nav.pager a { flex: 1; text-decoration: none; border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px; color: var(--text); background: var(--panel); font-size: 15px; }
+  nav.pager a small { display: block; color: var(--dim); font-size: 12px; }
+  nav.pager a.next { text-align: right; background: #2a2410; border-color: #6a5418; }
+  nav.pager a.empty { visibility: hidden; }
+
+  .home .intro { font-size: 18px; }
+  .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; margin: 10px 0 22px; }
+  .card { display: block; text-decoration: none; color: var(--text); background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 10px 14px; }
+  .card small { color: var(--dim); display: block; font-size: 12px; }
+  .card.done { border-color: #2f6b45; }
+  .card.soon { opacity: .45; pointer-events: none; }
+  .start { display: inline-block; background: var(--accent); color: #222; text-decoration: none; font-weight: 700; padding: 10px 22px; border-radius: 999px; margin: 6px 0 18px; }
+
+  @media (max-width: 900px) {
+    body { font-size: 16.5px; }
+    #tocBtn { display: inline-block; }
+    .layout { grid-template-columns: minmax(0, 1fr); }
+    aside { display: none; position: fixed; inset: 49px 0 0 0; max-height: none; z-index: 30; background: var(--bg); border: 0; padding: 14px 16px 60px; font-size: 16px; }
+    body.toc-open aside { display: block; }
+    main { padding: 16px 16px 50px; }
+    h2 { font-size: 23px; }
+    .one { font-size: 18px; }
+    .simlink { padding: 5px 10px; }
+  }
+</style>
+<script src="https://cdn.jsdelivr.net/npm/topojson-client@3.1.0/dist/topojson-client.min.js"></script>
+</head>
+<body>
+<header>
+  <button id="tocBtn" aria-label="課程目錄">☰ 目錄</button>
+  <h1><a href="#">📖 學習指引</a></h1>
+  <a class="simlink" href="index.html">🌏 模擬器</a>
+</header>
+<div class="progress"><div id="bar"></div></div>
+<div class="layout">
+  <aside id="toc"></aside>
+  <main><article id="page"></article></main>
+</div>
+<script type="module" src="guide.js"></script>
+</body>
+</html>
