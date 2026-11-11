@@ -6,7 +6,7 @@ const KEY = 'earthsim.guide.v1';
 const load = () => { try { return JSON.parse(localStorage.getItem(KEY)) || { done: [] }; } catch { return { done: [] }; } };
 const save = (p) => { try { localStorage.setItem(KEY, JSON.stringify(p)); } catch { /* 私密瀏覽等情況存不了，沒關係 */ } };
 let prog = load();
-let currentSim = null;
+let currentSims = [];
 const isPhone = () => matchMedia('(max-width: 900px)').matches;
 const chName = (n) => `第${'一二三四五六七八九十'[n - 1]}章`;
 
@@ -65,6 +65,7 @@ function lesson(l) {
     <h2>${l.title}</h2>
     <p class="one">${l.one}</p>
     <div class="analogy"><span class="label">打個比方</span><p>${l.analogy}</p></div>
+    ${l.pre ? `<div class="simwrap"><span class="label">${l.pre.label}</span><p>${l.pre.intro}</p><div id="sim0"></div><p class="try">${l.pre.tryIt}</p></div>` : ''}
     <ol class="steps">${l.steps.map((s) => `<li>${s}</li>`).join('')}</ol>
     <div class="simwrap"><div id="sim"></div><p class="try">${l.tryIt}</p></div>
     <p class="why"><span class="label">為什麼重要</span><br>${l.why}</p>
@@ -77,14 +78,15 @@ function lesson(l) {
 }
 
 function route() {
-  currentSim?.destroy(); currentSim = null;
+  currentSims.forEach((x) => x?.destroy()); currentSims = [];
   document.body.classList.remove('toc-open');
   const id = location.hash.slice(1);
   const l = LESSONS.find((x) => x.id === id);
   $('page').innerHTML = l ? lesson(l) : home();
   toc(l?.id);
   if (l) {
-    currentSim = SIMS[l.sim]?.($('sim'));
+    if (l.pre) currentSims.push(SIMS[l.pre.sim]?.($('sim0')));
+    currentSims.push(SIMS[l.sim]?.($('sim')));
     document.title = `${l.title}・學習指引`;
   } else document.title = '學習指引・地球與太陽';
   window.scrollTo(0, 0);

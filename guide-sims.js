@@ -80,6 +80,7 @@ export function makeSim(host, opt) {
   function frame(now) {
     raf = requestAnimationFrame(frame);
     const dt = Math.min(0.1, (now - last) / 1000); last = now;
+    if (opt.tick && opt.tick(s, dt)) dirty = true;
     if (playing && opt.play) {
       const p = opt.play;
       s[p.key] += p.speed * dt;
@@ -262,7 +263,7 @@ function eastRise(host) {
       // 分隔線
       ctx.strokeStyle = COL.line; ctx.beginPath(); ctx.moveTo(0, topH); ctx.lineTo(W, topH); ctx.stroke();
       // 下半：你看到的天空（面向南方）
-      const gy = H - 34, top = topH + 30, padX = 26;
+      const gy = H - 64, top = topH + 30, padX = 26;
       const X = (az) => padX + ((az - 60) / 240) * (W - padX * 2);
       const Y = (alt) => gy - (alt / 70) * (gy - top);
       const sky = ctx.createLinearGradient(0, top, 0, gy);
@@ -275,7 +276,9 @@ function eastRise(host) {
       path.forEach((p, i) => { const x = X(p.az), y = Y(Math.max(p.alt, -3)); i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); });
       ctx.stroke(); ctx.setLineDash([]);
       for (const [t, a] of [['東', 90], ['東南', 135], ['南', 180], ['西南', 225], ['西', 270]])
-        text(ctx, t, X(a), gy + 16, { size: t.length > 1 ? 12 : 15, bold: t.length === 1, color: t.length > 1 ? COL.dim : COL.text });
+        text(ctx, t, X(a), gy + 12, { size: t.length > 1 ? 12 : 15, bold: t.length === 1, color: t.length > 1 ? COL.dim : COL.text });
+      // 你的背影（從背後看，所以你的左手就在畫面左邊）
+      backView(ctx, X(180), gy + 30);
       if (alt > -4) sun(ctx, X(az), Y(alt), 11);
       text(ctx, '② 你站在台北面向南方，看到的天空', 12, topH + 16, { align: 'left', size: 13, color: COL.dim });
       const where = alt < -0.8 ? '太陽還在地平線下' : alt < 3 ? (s.h < 12 ? '太陽剛從東邊升起' : '太陽正要從西邊落下') : `太陽高度 ${alt.toFixed(0)}°，在${az < 175 ? '東南' : az > 185 ? '西南' : '正南'}方`;
@@ -389,4 +392,69 @@ function dayNightMap(host) {
   return sim;
 }
 
-export const SIMS = { lampBall, spinDay, eastRise, dayNightMap };
+// ───────────────────────── 第 3 課（前半）：先面向北方，再轉身面向南方 ─────────────────────────
+// 從背後看的小人：頭、身體、張開的雙手
+function backView(ctx, x, y) {
+  ctx.strokeStyle = '#ffe2c4'; ctx.fillStyle = '#ffe2c4'; ctx.lineWidth = 3; ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.arc(x, y - 2, 6, 0, Math.PI * 2); ctx.fill();          // 頭（後腦勺）
+  ctx.fillStyle = '#e8553e'; ctx.beginPath(); ctx.roundRect(x - 7, y + 5, 14, 17, 4); ctx.fill(); // 身體
+  ctx.beginPath(); ctx.moveTo(x - 6, y + 9); ctx.lineTo(x - 28, y + 9); ctx.moveTo(x + 6, y + 9); ctx.lineTo(x + 28, y + 9); ctx.stroke(); // 雙手
+  ctx.lineCap = 'butt';
+  text(ctx, '左手', x - 44, y + 9, { size: 11, color: '#ffe2c4' });
+  text(ctx, '右手', x + 44, y + 9, { size: 11, color: '#ffe2c4' });
+}
+// 羅盤方位 az（由北順時針）→ 畫面方向（上＝北）
+const scr = (az) => [Math.sin(az * D2R), -Math.cos(az * D2R)];
+const DIR8 = ['北', '東北', '東', '東南', '南', '西南', '西', '西北'];
+const dir8 = (az) => DIR8[Math.round((((az % 360) + 360) % 360) / 45) % 8];
+function turnAround(host) {
+  return makeSim(host, {
+    aspect: 0.72, maxH: 470,
+    state: { face: 0, target: 0 },
+    controls: [{ type: 'seg', key: 'target', options: [[0, '面向北方'], [180, '轉身面向南方']] }],
+    // 慢慢轉過去，看得到轉身的過程（每秒 120°，從右手邊轉）
+    tick(s, dt) {
+      if (s.face === s.target) return false;
+      const dir = s.target > s.face ? 1 : -1;
+      s.face += dir * Math.min(120 * dt, Math.abs(s.target - s.face));
+      return true;
+    },
+    draw(ctx, W, H, s) {
+      ctx.fillStyle = '#20331d'; ctx.fillRect(0, 0, W, H);
+      const cx = W / 2, cy = H / 2 + 4, R = Math.min(W, H) * 0.36;
+      // 地上的方位圈：東西南北固定不動
+      ctx.strokeStyle = 'rgba(255,255,255,.25)'; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.arc(cx, cy, R, 0, Math.PI * 2); ctx.stroke();
+      for (let a = 0; a < 360; a += 45) {
+        const [dx, dy] = scr(a), big = a % 90 === 0;
+        ctx.beginPath(); ctx.moveTo(cx + dx * R * 0.92, cy + dy * R * 0.92); ctx.lineTo(cx + dx * R, cy + dy * R); ctx.stroke();
+        text(ctx, DIR8[a / 45], cx + dx * (R + (big ? 20 : 18)), cy + dy * (R + (big ? 20 : 18)),
+          { size: big ? 20 : 12, bold: big, color: big ? '#fff' : COL.dim });
+      }
+      // 中午的太陽在南邊（台灣）
+      sun(ctx, cx, cy + R * 0.86, 9);
+      text(ctx, '中午的太陽', cx + 14, cy + R * 0.86, { size: 11, color: COL.sun, align: 'left' });
+      // 小人（從正上方往下看）
+      const f = s.face, [fx, fy] = scr(f), [rx, ry] = scr(f + 90), [lx, ly] = scr(f - 90);
+      const arm = R * 0.62, sh = 13;
+      ctx.setLineDash([5, 5]); ctx.strokeStyle = 'rgba(255,255,255,.5)'; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(cx + fx * R * 0.8, cy + fy * R * 0.8); ctx.stroke(); ctx.setLineDash([]);
+      arrow(ctx, cx + fx * R * 0.6, cy + fy * R * 0.6, cx + fx * R * 0.82, cy + fy * R * 0.82, 'rgba(255,255,255,.7)', 2, 9);
+      ctx.lineCap = 'round'; ctx.lineWidth = 5;
+      ctx.strokeStyle = COL.blue; ctx.beginPath(); ctx.moveTo(cx + rx * sh, cy + ry * sh); ctx.lineTo(cx + rx * arm, cy + ry * arm); ctx.stroke();
+      ctx.strokeStyle = COL.orange; ctx.beginPath(); ctx.moveTo(cx + lx * sh, cy + ly * sh); ctx.lineTo(cx + lx * arm, cy + ly * arm); ctx.stroke();
+      ctx.lineCap = 'butt';
+      ctx.fillStyle = '#e8553e'; ctx.beginPath(); ctx.ellipse(cx, cy, 16, 9, f * D2R, 0, Math.PI * 2); ctx.fill(); // 肩膀
+      ctx.fillStyle = '#ffe2c4'; ctx.beginPath(); ctx.arc(cx, cy, 7, 0, Math.PI * 2); ctx.fill();              // 頭
+      ctx.fillStyle = '#333'; ctx.beginPath(); ctx.arc(cx + fx * 6, cy + fy * 6, 2.2, 0, Math.PI * 2); ctx.fill(); // 鼻子＝臉朝的方向
+      text(ctx, '右手', cx + rx * (arm + 22), cy + ry * (arm + 22), { size: 14, bold: true, color: COL.blue });
+      text(ctx, '左手', cx + lx * (arm + 22), cy + ly * (arm + 22), { size: 14, bold: true, color: COL.orange });
+      text(ctx, '從正上方往下看', 10, 14, { align: 'left', size: 12, color: COL.dim });
+      const moving = s.face !== s.target;
+      if (moving) return '轉身中……注意：地上的東西南北<b>都沒有動</b>，動的是你的身體。';
+      return `你面向<b>${dir8(f)}方</b>：右手指向<b>${dir8(f + 90)}</b>，左手指向<b>${dir8(f - 90)}</b>。`;
+    },
+  });
+}
+
+export const SIMS = { lampBall, spinDay, eastRise, dayNightMap, turnAround };
